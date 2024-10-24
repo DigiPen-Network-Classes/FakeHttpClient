@@ -6,15 +6,13 @@ Param (
 $Command = $Command.ToLower()
 
 # powershell version check --- print this out up front so we can figure out problems...
-Write-Host "PowerShell Version:  $($PSVersionTable.PSVersion)"
-Write-Host "Architecture Detected: $ENV:PROCESSOR_ARCHITECTURE"
+Write-Host "PowerShell Version:  $($PSVersionTable.PSVersion)" -ForegroundColor Green
+Write-Host "Architecture Detected: $ENV:PROCESSOR_ARCHITECTURE" -ForegroundColor Green
 
 # constants to some important files: 
 $MSBuildExe = "C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe"
 $ClientExe = Join-Path $PSScriptRoot "FakeHttpClient/Release/CS260_FakeHttpClient.exe"
 $ResultsDir = Join-Path $PSScriptRoot "results/"
-Write-Host $ResultsDir
-
 
 function BuildClient {
     # Determine architecture and set MSBuild architecture
@@ -27,55 +25,51 @@ function BuildClient {
     $solutionPath = Join-Path $PSScriptRoot "FakeHttpClient\FakeHttpClient.sln"
 
     # Build the solution
-    Write-Host "Building FakeHttpClient ($arch)..."
+    Write-Host "Building FakeHttpClient ($arch)..." -ForegroundColor Blue
     & "$msbuildPath" $solutionPath /p:Configuration=Release /p:Platform=$arch
 
     if ($LASTEXITCODE -ne 0) {
-        Write-Error "Build failed!"
+        Write-Error "Build failed!" -ForegroundColor Red
         exit $LASTEXITCODE
     } else {
-        Write-Host "Build succeeded!"
+        Write-Host "Build succeeded!" -ForegroundColor Green
     }
 }
 
 function VerifyMSBuildExists {
     if (-not (Test-Path $MSBuildExe)) {
-        Write-Error "msbuild.exe not found (tried $MSBuildExe)"
+        Write-Error "msbuild.exe not found (tried $MSBuildExe)" -ForegroundColor Red
         exit 1
     }
 }
 
 function VerifyClientExists {
     if (-not (Test-Path $ClientExe)) {
-        Write-Error "Client Executable not found at $ClientExe"
+        Write-Error "Client Executable not found at $ClientExe" -ForegroundColor Red
         return $false
     }
     return $true
 }
 
 function CreateClientProcess {
-    param([string]$url, [bool]$createNoWindow)
+    param([string]$url)
     $procInfo = New-Object System.Diagnostics.ProcessStartInfo
     $procInfo.FileName = $ClientExe
     $procInfo.Arguments = "$url $Port"
     $procInfo.RedirectStandardOutput = $true
     $procInfo.RedirectStandardError = $true
     $procInfo.UseShellExecute = $false
-    $procInfo.CreateNoWindow = $createNoWindow
+    $procInfo.CreateNoWindow = $true
 
     $proc = New-Object System.Diagnostics.Process
     $proc.StartInfo = $procInfo
     return $proc
 }
 
-function PrintStr {
-    Param($stream, [bool]$isError, [string]$logFile)
-    
+function PrintStreamToScreen {
+    Param($stream, [bool]$isError)
     while ($null -ne $stream -and $stream.Peek() -ge 0) {
         $c = [char]$stream.Read()
-        if ($null -ne $logFile) {
-            Add-Content -Path $logFile -Value $c
-        }
         if ($isError) {
             Write-Host -NoNewLine $c -ForegroundColor Red
         } else {
@@ -85,34 +79,42 @@ function PrintStr {
 }
 
 function ExecuteTest {
-    Param([string]$TestName, [string]$Url)
-    Write-Output "Running test $TestName for $Assignment..."
-
-    $testLog = Join-Path $ResultsDir "$TestName.txt"
-    $errorLog = Join-Path $ResultsDir "$TestName-error.txt"
-
-    New-Item -Path $testLog -ItemType File -Force
-    New-Item -Path $errorLog -ItemType File -Force
-
-    $proc = CreateClientProcess $Url $true
-    if (-not $proc.Start())
-    {
+    Param([string]$TestName, [string]$Url, [switch]$OutputToScreen)
+    $proc = CreateClientProcess $Url
+    if (-not $proc.Start()) {
         Write-Output "Error: $ClientExe failed to start"
         exit 1
     }
 
-    Start-Job -ScriptBlock {
-        Param($proc, $testLog, $errorLog)
-        $stdoutStream = $proc.StandardOutput
-        $stderrStream = $proc.StandardError
+    $stdoutStream = $proc.StandardOutput
+    $stderrStream = $proc.StandardError
+
+    if ($OutputToScreen) {
+        # print in "real time" (no or little buffering)
         while (-not $proc.HasExited) {
-            PrintStr $stdoutStream $false $testLog
-            PrintStr $stderrStream $true $errorLog
-            Start-Sleep -Milliseconds 10
+            PrintStreamToScreen -stream $stdoutStream -isError $false
+            PrintStreamToScreen -stream $stderrStream -isError $true
         }
-        PrintStr $stdoutStream $false $testLog
-        PrintStr $stderrStream $true $errorLog
-    } -ArgumentList $proc, $testLog, $errorLog
+        PrintStreamToScreen -stream $stdoutStream -isError $false
+        PrintStreamToScreen -stream $stderrStream -isError $true
+    } else {
+        # write to files synchronously
+        $testLog = Join-Path $ResultsDir "$TestName.txt"
+        $errorLog = Join-Path $ResultsDir "$TestName-error.txt"
+    
+        New-Item -Path $testLog -ItemType File -Force | Out-Null
+        New-Item -Path $errorLog -ItemType File -Force | Out-Null
+
+        while (-not $stdoutStream.EndOfStream) {
+            $line = $stdoutStream.ReadLine()
+            $line | Out-File -FilePath $testLog -Append
+        }
+        while (-not $stderrStream.EndOfStream) {
+            $line = $stderrStream.ReadLine()
+            $line | Out-File -FilePath $errorLog -Append
+        }
+        $proc.WaitForExit()
+    }       
 }
 
 # Function to wait for all jobs to complete
@@ -151,7 +153,7 @@ switch -Regex ($Command) {
         }
 
         # just run vs. one url
-        ExecuteTest -TestName "run-one" -Url $TestUrl
+        ExecuteTest -TestName "run-one" -Url $TestUrl -OutputToScreen
         exit 0
     }
     "runAll" {
