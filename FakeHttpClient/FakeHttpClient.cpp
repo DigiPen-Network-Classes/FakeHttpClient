@@ -32,7 +32,7 @@ void PrintCurrentTime()
     char timeStr[256];
     auto time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
     ctime_s(timeStr, 256, &time);
-    std::cout << timeStr << std::endl;
+    printf("%s\n", timeStr);
 }
 
 
@@ -83,6 +83,9 @@ int main(int argc, char* argv[])
         return 1;
     }
 
+    // Disable buffering for stdout
+    setvbuf(stdout, NULL, _IONBF, 0);
+
     // -- WSA Startup
     WSADATA wsaData;
     int res = WSAStartup(MAKEWORD(2, 2), &wsaData);
@@ -112,7 +115,7 @@ int main(int argc, char* argv[])
     }
 
     // -- Output the current time (start of this client operation)
-    std::cout << "Operation started at: ";
+    printf("Operation Started At: ");
     PrintCurrentTime();
 
     // -- Connect to remote server
@@ -125,7 +128,7 @@ int main(int argc, char* argv[])
         goto end_socket;
     }
 
-    std::cout << "Connected at ";
+    printf("Connected At: ");
     PrintCurrentTime();
 
 
@@ -163,11 +166,8 @@ int main(int argc, char* argv[])
 
     shutdown(tcpSocket, SD_SEND);
 
-    std::cout << "Send complete at ";
+    printf("Send Complete At ");
     PrintCurrentTime();
-
-    // Disable buffering for stdout
-    setvbuf(stdout, NULL, _IONBF, 0);
 
     // -- Receive all data
     // NOTE: the server will close the socket on its side, so we don't need to parse the length
@@ -187,8 +187,10 @@ int main(int argc, char* argv[])
         }
         else 
         {
-            recvBuffer[res] = '\0'; // null terminate the string
-            printf("%s", recvBuffer);
+            if (res > 0) {
+                recvBuffer[res] = '\0'; // null terminate the string
+                printf("%s", recvBuffer);
+            }
         }
     } while (res != 0);
     delete[] recvBufferOriginal;
@@ -211,7 +213,7 @@ end_socket:
     }
 
     // -- Output the current time (end of this client operation)
-    std::cout << "Operation completed at: ";
+    printf("Operation Completed At: ");
     PrintCurrentTime();
 
     // -- Cleanup WSA

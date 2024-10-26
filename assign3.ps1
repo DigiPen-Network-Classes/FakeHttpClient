@@ -11,12 +11,16 @@ Write-Host "Architecture Detected: $ENV:PROCESSOR_ARCHITECTURE" -ForegroundColor
 
 # constants to some important files: 
 $MSBuildExe = "C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe"
-$ClientExe = Join-Path $PSScriptRoot "FakeHttpClient/Release/CS260_FakeHttpClient.exe"
+$ClientExe = Join-Path $PSScriptRoot "FakeHttpClient/$ENV:PROCESSOR_ARCHITECTURE/Release/CS260_FakeHttpClient.exe"
 $ResultsDir = Join-Path $PSScriptRoot "results/"
 
 function BuildClient {
     # Determine architecture and set MSBuild architecture
-    $arch = if ($ENV:PROCESSOR_ARCHITECTURE -eq "AMD64") { "x64" } else { "x86" }
+    $arch = if ($ENV:PROCESSOR_ARCHITECTURE -eq "AMD64")  { 
+        "x64" 
+    } else { 
+        $ENV:PROCESSOR_ARCHITECTURE
+    }
 
     # requires the correct path to MSBuild (see above)
     VerifyMSBuildExists
@@ -26,7 +30,7 @@ function BuildClient {
 
     # Build the solution
     Write-Host "Building FakeHttpClient ($arch)..." -ForegroundColor Blue
-    & "$msbuildPath" $solutionPath /p:Configuration=Release /p:Platform=$arch
+    & "$MSBuildExe" $solutionPath /p:Configuration=Release /p:Platform=$arch
 
     if ($LASTEXITCODE -ne 0) {
         Write-Error "Build failed!" -ForegroundColor Red
@@ -38,14 +42,14 @@ function BuildClient {
 
 function VerifyMSBuildExists {
     if (-not (Test-Path $MSBuildExe)) {
-        Write-Error "msbuild.exe not found (tried $MSBuildExe)" -ForegroundColor Red
+        Write-Error "msbuild.exe not found (tried $MSBuildExe)"
         exit 1
     }
 }
 
 function VerifyClientExists {
     if (-not (Test-Path $ClientExe)) {
-        Write-Error "Client Executable not found at $ClientExe" -ForegroundColor Red
+        Write-Error "Client Executable not found at: $ClientExe"
         return $false
     }
     return $true
@@ -68,7 +72,8 @@ function CreateClientProcess {
 
 function PrintStreamToScreen {
     Param($stream, [bool]$isError)
-    while ($null -ne $stream -and $stream.Peek() -ge 0) {
+    #while ($stream.Peek() -ge 0) {
+    while(-not $stream.EndOfStream) {
         $c = [char]$stream.Read()
         if ($isError) {
             Write-Host -NoNewLine $c -ForegroundColor Red
@@ -89,7 +94,7 @@ function ExecuteTest {
     $stdoutStream = $proc.StandardOutput
     $stderrStream = $proc.StandardError
 
-    # print in "real time" (no or little buffering)
+    # print in "real time" (no buffering)
     while (-not $proc.HasExited) {
         PrintStreamToScreen -stream $stdoutStream -isError $false
         PrintStreamToScreen -stream $stderrStream -isError $true
@@ -138,7 +143,6 @@ switch -Regex ($Command) {
         if (-not (VerifyClientExists)) {
             BuildClient
         }
-
         # just run vs. one url
         ExecuteTest -TestName "run-one" -Url $TestUrl
         exit 0
