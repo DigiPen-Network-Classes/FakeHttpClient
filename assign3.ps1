@@ -14,6 +14,9 @@ $MSBuildExe = "C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\C
 $ClientExe = Join-Path $PSScriptRoot "FakeHttpClient/$ENV:PROCESSOR_ARCHITECTURE/Release/CS260_FakeHttpClient.exe"
 $ResultsDir = Join-Path $PSScriptRoot "results/"
 
+# create results dir if needed
+New-Item -Path $ResultsDir -ItemType Directory -Force | Out-Null
+
 function BuildClient {
     # Determine architecture and set MSBuild architecture
     $arch = if ($ENV:PROCESSOR_ARCHITECTURE -eq "AMD64")  { 
@@ -108,9 +111,12 @@ function ExecuteTestJob {
     Param([string]$TestName, [string]$Url)
     Start-Job -ScriptBlock  {
         Param($testName, $url, $port, $resultsDir, $clientExe)
+        Write-Output "execute test job $testName $url $(Get-Date)"
         # Ensure logs are created
         $testLog = Join-Path $resultsDir "$TestName.txt"
         $errorLog = Join-Path $resultsDir "$TestName-error.txt"
+        New-Item -Path $testLog -ItemType File -Force | Out-Null
+        New-Item -Path $errorLog -ItemType File -Force | Out-Null
 
         # Use Start-Process with output redirection
         $proxyArgs = "$url $port"
@@ -149,6 +155,7 @@ switch -Regex ($Command) {
     }
     "runAll" {
         Write-Output "Run all the tests!"
+
         $testCases = @(
             @{ TestName = "Valid-Delay-1-DNS"; Url = "http://cs260.meancat.com/delay" },
             @{ TestName = "Valid-Delay-2-DNS"; Url = "http://cs260.meancat.com/delay" }
@@ -159,7 +166,9 @@ switch -Regex ($Command) {
             #@{ TestName = "Valid-Google-Slash"; Url = "http://www.google.com/" }
         )
         foreach($test in $testCases) {
+            Write-Output "Run $test.TestName"
             ExecuteTestJob -TestName $test.TestName -Url $test.Url
+            Write-Output "Done"
         }
         Write-Host "Waiting for all jobs ..."
         Wait-Job -State Running

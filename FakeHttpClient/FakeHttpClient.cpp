@@ -139,8 +139,9 @@ int main(int argc, char* argv[])
     message = "";
     message += "GET " + std::string(resource) + " HTTP/1.1\r\n";
     message += "Host: " + std::string(url) + "\r\n";
-    message += "Connection: close";
-    message += "\r\n";
+    message += "Connection: close\r\n";
+    message += "User-Agent: curl/8.9.1\r\n";
+    message += "Accept: */*\r\n";
     message += "\r\n";
 
     // -- Sending the HTTP request
