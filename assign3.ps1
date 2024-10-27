@@ -158,8 +158,8 @@ switch -Regex ($Command) {
             @{ TestName = "Valid-Delay-3-DNS"; Url = "http://cs260.meancat.com/delay" },
             @{ TestName = "Valid-Delay-4-DNS"; Url = "http://cs260.meancat.com/delay" },
             @{ TestName = "Valid-Delay-IP"; Url = "http://52.12.14.56/delay" }
-            #@{ TestName = "Valid-Google-NoSlash"; Url = "http://www.google.com" },
-            #@{ TestName = "Valid-Google-Slash"; Url = "http://www.google.com/" }
+            @{ TestName = "Valid-Google-NoSlash"; Url = "http://www.google.com" },
+            @{ TestName = "Valid-Google-Slash"; Url = "http://www.google.com/" }
         )
         foreach($test in $testCases) {
             Write-Output "Run $test.TestName"
