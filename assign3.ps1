@@ -7,24 +7,20 @@ $Command = $Command.ToLower()
 
 # powershell version check --- print this out up front so we can figure out problems...
 Write-Host "PowerShell Version:  $($PSVersionTable.PSVersion)" -ForegroundColor Green
-Write-Host "Architecture Detected: $ENV:PROCESSOR_ARCHITECTURE" -ForegroundColor Green
+
+$DetectedArch = if ($ENV:PROCESSOR_ARCHITECTURE -eq "AMD64") { "x64" } else { $ENV:PROCESSOR_ARCHITECTURE }
+
+Write-Host "Architecture Detected: $DetectedArch" -ForegroundColor Green
 
 # constants to some important files: 
 $MSBuildExe = "C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe"
-$ClientExe = Join-Path $PSScriptRoot "FakeHttpClient/$ENV:PROCESSOR_ARCHITECTURE/Release/CS260_FakeHttpClient.exe"
+$ClientExe = Join-Path $PSScriptRoot "FakeHttpClient/$DetectedArch/Release/CS260_FakeHttpClient.exe"
 $ResultsDir = Join-Path $PSScriptRoot "results/"
 
 # create results dir if needed
 New-Item -Path $ResultsDir -ItemType Directory -Force | Out-Null
 
 function BuildClient {
-    # Determine architecture and set MSBuild architecture
-    $arch = if ($ENV:PROCESSOR_ARCHITECTURE -eq "AMD64")  { 
-        "x64" 
-    } else { 
-        $ENV:PROCESSOR_ARCHITECTURE
-    }
-
     # requires the correct path to MSBuild (see above)
     VerifyMSBuildExists
 
@@ -32,8 +28,8 @@ function BuildClient {
     $solutionPath = Join-Path $PSScriptRoot "FakeHttpClient\FakeHttpClient.sln"
 
     # Build the solution
-    Write-Host "Building FakeHttpClient ($arch)..." -ForegroundColor Blue
-    & "$MSBuildExe" $solutionPath /p:Configuration=Release /p:Platform=$arch
+    Write-Host "Building FakeHttpClient ($DetectedArch)..." -ForegroundColor Blue
+    & "$MSBuildExe" $solutionPath /p:Configuration=Release /p:Platform=$DetectedArch
 
     if ($LASTEXITCODE -ne 0) {
         Write-Error "Build failed!" -ForegroundColor Red
@@ -111,7 +107,7 @@ function ExecuteTestJob {
     Param([string]$TestName, [string]$Url)
     Start-Job -ScriptBlock  {
         Param($testName, $url, $port, $resultsDir, $clientExe)
-        Write-Output "execute test job $testName $url $(Get-Date)"
+        Write-Output "Begin Test $testName $url $(Get-Date)"
         # Ensure logs are created
         $testLog = Join-Path $resultsDir "$TestName.txt"
         $errorLog = Join-Path $resultsDir "$TestName-error.txt"
@@ -130,7 +126,7 @@ function ExecuteTestJob {
         # Wait for the process to finish or timeout after 1 minute
         $timeout = 30
         $process | Wait-Process -Timeout $timeout
-        Write-Host "Test $TestName ended"
+        Write-Host "End Test $TestName $(Get-Date)"
     } -ArgumentList $test.TestName, $test.Url, $ProxyPort, $ResultsDir, $ClientExe
 }
 
