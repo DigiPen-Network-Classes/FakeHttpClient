@@ -1,0 +1,117 @@
+Operation Started At: Sat Oct 26 16:54:48 2024
+
+Connected At: Sat Oct 26 16:54:48 2024
+
+Send Complete At Sat Oct 26 16:54:48 2024
+
+HTTP/1.1 200 OK
+Server: nginx/1.18.0
+Date: Sat, 26 Oct 2024 23:54:49 GMT
+Transfer-Encoding: chunked
+Connection: close
+X-Powered-By: Express
+
+65
+<html><head><title>DigiPen CS 260 Delayed Response Test</title></head><body><h2>Here we go!</h2>1<br>
+5
+2<br>
+5
+3<br>
+5
+4<br>
+5
+5<br>
+5
+6<br>
+5
+7<br>
+5
+8<br>
+5
+9<br>
+6
+10<br>
+6
+11<br>
+6
+12<br>
+6
+13<br>
+6
+14<br>
+6
+15<br>
+6
+16<br>
+6
+17<br>
+6
+18<br>
+6
+19<br>
+6
+20<br>
+6
+21<br>
+6
+22<br>
+6
+23<br>
+6
+24<br>
+6
+25<br>
+6
+26<br>
+6
+27<br>
+6
+28<br>
+6
+29<br>
+6
+30<br>
+6
+31<br>
+6
+32<br>
+6
+33<br>
+6
+34<br>
+6
+35<br>
+6
+36<br>
+6
+37<br>
+6
+38<br>
+6
+39<br>
+6
+40<br>
+6
+41<br>
+6
+42<br>
+6
+43<br>
+6
+44<br>
+6
+45<br>
+6
+46<br>
+6
+47<br>
+6
+48<br>
+6
+49<br>
+26
+50<br><h2>All done!</h2></body></html>
+0
+
+Operation Completed At: Sat Oct 26 16:54:54 2024
+
