@@ -1,7 +1,7 @@
 Param (
     [string]$Command,
     [int]$ProxyPort = 8888,
-    [string]$TestUrl = "http://cs260.meancat.com/delay"
+    [string]$Url = "http://cs260.meancat.com/delay"
 )
 $Command = $Command.ToLower()
 
@@ -146,7 +146,7 @@ switch -Regex ($Command) {
             BuildClient
         }
         # just run vs. one url
-        ExecuteTest -TestName "run-one" -Url $TestUrl
+        ExecuteTest -TestName "run-one" -Url $Url
         exit 0
     }
     "runAll" {
