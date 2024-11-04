@@ -58,6 +58,10 @@ int main(int argc, char* argv[])
     char* recvBufferOriginal = recvBuffer;
     ZeroMemory(recvBuffer, RECV_BUFFER_LEN);
 
+    // timekeeping
+    std::chrono::steady_clock::time_point start_time, connected_time, end_time;
+    long long total_duration, connection_duration;
+
     // -- Argument Parsing and Validation
     if (argc != 3)
     {
@@ -118,6 +122,9 @@ int main(int argc, char* argv[])
     printf("Operation Started At: ");
     PrintCurrentTime();
 
+    // start time for calculating differences later:
+    start_time = std::chrono::steady_clock::now();
+
     // -- Connect to remote server
     // NOTE: Per assignment requirements, this did not need to be non-blocking. 
     // It's simpler this way, but non-blocking connect() is also acceptable.
@@ -130,6 +137,7 @@ int main(int argc, char* argv[])
 
     printf("Connected At: ");
     PrintCurrentTime();
+    connected_time = std::chrono::steady_clock::now();
 
 
     // -- Set the socket as non-blocking
@@ -216,6 +224,11 @@ end_socket:
     // -- Output the current time (end of this client operation)
     printf("Operation Completed At: ");
     PrintCurrentTime();
+    end_time = std::chrono::steady_clock::now();
+    connection_duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - connected_time).count();
+    total_duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
+    printf("Connected: %lld ms\n", connection_duration);
+    printf("Total Elapsed: %lld ms\n", total_duration);
 
     // -- Cleanup WSA
 end:
