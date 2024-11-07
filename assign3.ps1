@@ -130,6 +130,12 @@ function ExecuteTestJob {
     } -ArgumentList $test.TestName, $test.Url, $ProxyPort, $ResultsDir, $ClientExe
 }
 
+function IsUserPrivileged {
+    if ($IsMacOs -eq $true) {
+        return true;
+    }
+    return ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]"Administrator")
+}
 
 switch -Regex ($Command) {
     "buildClient" {
@@ -174,4 +180,69 @@ switch -Regex ($Command) {
         }
         Write-Host "Complete!"
     }
+    "create-cert" {
+        New-SelfSignedCertificate -Type CodeSigningCert -Subject "CN=DigiPen-CS260-ScriptSigning" -CertStoreLocation Cert:\CurrentUser\My
+    }
+    "export-cert" {
+        $cert = Get-ChildItem -Path Cert:\CurrentUser\My | Where-Object { $_.Subject -match "DigiPen-CS260-ScriptSigning" }
+        Export-Certificate -Cert $cert -FilePath "DigiPen-CS260-ScriptSigning.cer"
+    }
+    "sign-script" {
+        $cert = Get-ChildItem -Path Cert:\CurrentUser\My | Where-Object { $_.Subject -match "DigiPen-CS260-ScriptSigning" }
+        Set-AuthenticodeSignature -FilePath ".\assign3.ps1" -Certificate $cert
+        Write-Host "Signed"
+    }
+    "import-cert" {
+        # you must be admin for this to work
+        $isAdmin = IsUserPrivileged
+        if (-not $isAdmin) {
+            Write-Host "You must be running as administrator to do that!"
+            return
+        }
+        Import-Certificate -FilePath ".\DigiPen-CS260-ScriptSigning.cer" -CertStoreLocation Cert:\LocalMachine\TrustedPublisher
+        Write-Host "Import done"
+    }
+    "set-execution-policy" {
+        $isAdmin = IsUserPrivileged
+        if (-not $isAdmin) {
+            Write-Host "You must be running as administrator to do that!"
+            return
+        }
+        Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
+        Write-Host "Done!"
+    }
 }
+
+# SIG # Begin signature block
+# MIIFtgYJKoZIhvcNAQcCoIIFpzCCBaMCAQExDzANBglghkgBZQMEAgEFADB5Bgor
+# BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDZIhH4Vv/GAWLu
+# FykFgwQ+cNZn57gA0FJp9v/ZJXfAa6CCAyAwggMcMIICBKADAgECAhBs1zNr0OVC
+# rUrmSV3omiDSMA0GCSqGSIb3DQEBCwUAMCYxJDAiBgNVBAMMG0RpZ2lQZW4tQ1My
+# NjAtU2NyaXB0U2lnbmluZzAeFw0yNDExMDcwMzI2NDhaFw0yNTExMDcwMzQ2NDha
+# MCYxJDAiBgNVBAMMG0RpZ2lQZW4tQ1MyNjAtU2NyaXB0U2lnbmluZzCCASIwDQYJ
+# KoZIhvcNAQEBBQADggEPADCCAQoCggEBAKGymtIxcfW3BfaHNzR8tNqR3/42L53J
+# LqxU/EoquytTnR4Fv7IBA1AaLQI6OTEWAGt2IkBlD66KcmJY1v2XeYA4MrZeiWEL
+# 9oyg0y+uY5ANzPDsPfXKCgcUgNajo49XGmh134tdLfru/FrRcJvQPuRwX+Qpg8kQ
+# u5DGaea6VQoR6kG++zQvP9lPYOXaXlu8GR12tFeKLyosA/deb0kVsJsrft/DLRUX
+# 7lHmzxT+g488dD5CA3E+m1jfzLBXryYhR9U9Etpbo0mB4sd6LIDAY11eqmLwz5T1
+# mKMgk2rR+uR+7acVP7RBWyrMJMViU0LxqDE6kQ4a6Zx+5w4GsxiBN6kCAwEAAaNG
+# MEQwDgYDVR0PAQH/BAQDAgeAMBMGA1UdJQQMMAoGCCsGAQUFBwMDMB0GA1UdDgQW
+# BBQnMPcAIUqVQO7Sd12ivxBFlMAB7TANBgkqhkiG9w0BAQsFAAOCAQEAkcj92kpE
+# Z5Aj1EXwp3aMj8ZcXHRmkITDYqvVNnCJV0LH8NMLV/gMiTdw09xxoUneHEwrqJnf
+# tcQoptaxvQKNym5t0pZ9DAp99lEHahGNPU/LfDDNScCEWvATqvR2sALSOlBMhnPa
+# nH5VCIXqfA57O6rEWF1VK6p4fFCP7+eqT3+HDs6JZLHWoS0nHCTBtkLm1c8XLM2S
+# g4KPlEhCDXXcX+J2s1r8TWeMARU3do7RPGgeer3Al4URqPhkwqbU+87FeCfgNbsF
+# Dq4JiGrZRK51XL2nizKLmjQr+e8jRTa9rF5kpKKqMDC80XDOJvrRpke7281Xc929
+# DDo2IdTHf57eTjGCAewwggHoAgEBMDowJjEkMCIGA1UEAwwbRGlnaVBlbi1DUzI2
+# MC1TY3JpcHRTaWduaW5nAhBs1zNr0OVCrUrmSV3omiDSMA0GCWCGSAFlAwQCAQUA
+# oIGEMBgGCisGAQQBgjcCAQwxCjAIoAKAAKECgAAwGQYJKoZIhvcNAQkDMQwGCisG
+# AQQBgjcCAQQwHAYKKwYBBAGCNwIBCzEOMAwGCisGAQQBgjcCARUwLwYJKoZIhvcN
+# AQkEMSIEIJVZvq0mdU6oFH5iK/BW/JhtEyAyYO49+NmB3V4BDkjfMA0GCSqGSIb3
+# DQEBAQUABIIBABI4kSgbYRaOp+HKEjZ4Wml8EiIMxhpJTAx9765TC8V1ot+Yzsg1
+# rcWFerLLyq0vP5sagLsopN5Gj4c78SnF+MXlrusEizas/oxQGyZKJN38Puqr7udm
+# m73zyWwTISyT9gp7dzKSJx46z1AOsR+vj+CACwIPLcmzUSVNyaXvlr87pND/cygo
+# OTnDrouZ39f6ShaIaCVU8KyUt8s8FvyG98642ZsGF9Ui3a+hnvEertAzizZI6WG1
+# GY1EO4gDLxyUdJPYKn0XeGfsrzNJIXofNpvIdi5mH0fEHjEOncc+XPFJg73tf8vz
+# RElYe5R6dCuXsd0wpj8hCna5FjxAYqlps48=
+# SIG # End signature block
